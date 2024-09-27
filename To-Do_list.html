@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>To-Do List</title>
+<style>
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: rgb(219, 218, 218);
+  color: #333;
+  margin: 0;
+  padding: 0;
+}
+.container {
+  max-width: 700px;
+  margin: 50px auto;
+  padding: 20px;
+  background-color: rgb(255, 255, 255); 
+  border-radius: 15px;
+}
+h1 {
+  text-align: center;
+  color: rgb(93, 156, 236);
+}
+.form-group {
+  margin-bottom: 15px;
+}
+label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+input[type="text"],
+input[type="date"],
+textarea {
+  width: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+}
+textarea {
+  resize: vertical;
+}
+button {
+  padding: 10px 20px;
+  background-color: rgb(93, 156, 236);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  margin-top: 10px;
+  border-radius: 5px;
+  transition: background-color 0.3s, transform 0.2s;
+}
+button:hover {
+  background-color: rgb(74, 138, 212);
+  transform: translateY(-2px);
+}
+#taskList {
+  list-style-type: none;
+  padding: 0;
+}
+.taskItem {
+  background-color: rgb(227,227,227);
+  padding: 15px;
+  margin-top: 10px;
+  border-radius: 5px;
+}
+.taskItem h3 {
+  margin: 0;
+  color: rgb(93, 156, 236);
+}
+.taskItem p {
+  margin: 5px 0;
+}
+.taskItem small {
+  color: rgb(136,136,136);
+}
+.taskButtons {
+  margin-top: 10px;
+}
+.taskButtons button {
+  background-color: rgb(217, 83, 79);
+  border-radius: 5px;
+  transition: background-color 0.3s, transform 0.2s;
+}
+.taskButtons button:first-child {
+  background-color: rgb(240, 172, 78);
+}
+.taskButtons button:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+.taskButtons button:first-child:hover {
+  background-color: rgb(236, 151, 31);
+}
+.taskButtons button + button {
+  margin-left: 5px;
+}
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0,0,0,0.5);
+}
+.modal-content {
+  background-color: rgb(255, 255, 255);
+  margin: 10% auto;
+  padding: 20px;
+  border-radius: 5px;
+  width: 80%;
+  max-width: 500px;
+}
+.close {
+  color: rgb(170,170,170);
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.close:hover,
+.close:focus {
+  color: black;
+}
+@media (max-width: 600px) {
+  .container {
+    margin: 20px;
+  }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>To-Do List</h1>
+  <div class="form-group">
+    <label for="taskTitle">Task Title:</label>
+    <input type="text" id="taskTitle" placeholder="Enter task title">
+  </div>
+  <div class="form-group">
+    <label for="taskDescription">Description:</label>
+    <textarea id="taskDescription" rows="3" placeholder="Enter task description"></textarea>
+  </div>
+  <div class="form-group">
+    <label for="taskDate">Due Date:</label>
+    <input type="date" id="taskDate">
+  </div>
+  <button id="addTaskButton">Add Task</button>
+  <ul id="taskList">
+  </ul>
+</div>
+<div id="editModal" class="modal">
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <h2>Edit Task</h2>
+    <div class="form-group">
+      <label for="editTaskTitle">Task Title:</label>
+      <input type="text" id="editTaskTitle">
+    </div>
+    <div class="form-group">
+      <label for="editTaskDescription">Description:</label>
+      <textarea id="editTaskDescription" rows="3"></textarea>
+    </div>
+    <div class="form-group">
+      <label for="editTaskDate">Due Date:</label>
+      <input type="date" id="editTaskDate">
+    </div>
+    <button id="saveTaskButton">Save Changes</button>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  let tasks = [];
+  const taskTitleInput = document.getElementById('taskTitle');
+  const taskDescriptionInput = document.getElementById('taskDescription');
+  const taskDateInput = document.getElementById('taskDate');
+  const addTaskButton = document.getElementById('addTaskButton');
+  const taskList = document.getElementById('taskList');
+  const editModal = document.getElementById('editModal');
+  const editTaskTitleInput = document.getElementById('editTaskTitle');
+  const editTaskDescriptionInput = document.getElementById('editTaskDescription');
+  const editTaskDateInput = document.getElementById('editTaskDate');
+  const saveTaskButton = document.getElementById('saveTaskButton');
+  const closeModalButton = document.querySelector('.close');
+  let currentEditTaskId = null;
+  if (localStorage.getItem('tasks')) {
+    tasks = JSON.parse(localStorage.getItem('tasks'));
+    renderTasks();
+  }
+  addTaskButton.addEventListener('click', function() {
+    const taskTitle = taskTitleInput.value.trim();
+    const taskDescription = taskDescriptionInput.value.trim();
+    const taskDate = taskDateInput.value;
+    if (taskTitle !== '') {
+      const task = {
+        id: Date.now(),
+        title: taskTitle,
+        description: taskDescription,
+        date: taskDate
+      };
+      tasks.push(task);
+      saveTasks();
+      renderTasks();
+      taskTitleInput.value = '';
+      taskDescriptionInput.value = '';
+      taskDateInput.value = '';
+      taskTitleInput.focus();
+    } else {
+      alert('Task title is required.');
+    }
+  });
+  function renderTasks() {
+    taskList.innerHTML = '';
+    tasks.forEach(function(task) {
+      const li = document.createElement('li');
+      li.className = 'taskItem';
+      const title = document.createElement('h3');
+      title.textContent = task.title;
+      const description = document.createElement('p');
+      description.textContent = task.description;
+      const date = document.createElement('small');
+      date.textContent = task.date ? 'Due Date: ' + task.date : '';
+      const buttonsDiv = document.createElement('div');
+      buttonsDiv.className = 'taskButtons';
+      const editButton = document.createElement('button');
+      editButton.textContent = 'Edit';
+      editButton.addEventListener('click', function() {
+        editTask(task.id);
+      });
+      const deleteButton = document.createElement('button');
+      deleteButton.textContent = 'Delete';
+      deleteButton.addEventListener('click', function() {
+        deleteTask(task.id);
+      });
+      buttonsDiv.appendChild(editButton);
+      buttonsDiv.appendChild(deleteButton);
+      li.appendChild(title);
+      li.appendChild(description);
+      li.appendChild(date);
+      li.appendChild(buttonsDiv);
+      taskList.appendChild(li);
+    });
+  }
+  function saveTasks() {
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+  }
+  function deleteTask(id) {
+    tasks = tasks.filter(function(task) {
+      return task.id !== id;
+    });
+    saveTasks();
+    renderTasks();
+  }
+  function editTask(id) {
+    const task = tasks.find(function(task) {
+      return task.id === id;
+    });
+    currentEditTaskId = id;
+    editTaskTitleInput.value = task.title;
+    editTaskDescriptionInput.value = task.description;
+    editTaskDateInput.value = task.date;
+    editModal.style.display = 'block';
+  }
+  saveTaskButton.addEventListener('click', function() {
+    const task = tasks.find(function(task) {
+      return task.id === currentEditTaskId;
+    });
+    const newTitle = editTaskTitleInput.value.trim();
+    if (newTitle !== '') {
+      task.title = newTitle;
+    } else {
+      alert('Task title is required.');
+      return;
+    }
+    task.description = editTaskDescriptionInput.value.trim();
+    task.date = editTaskDateInput.value;
+    saveTasks();
+    renderTasks();
+    editModal.style.display = 'none';
+  });
+  closeModalButton.addEventListener('click', function() {
+    editModal.style.display = 'none';
+  });
+  window.addEventListener('click', function(event) {
+    if (event.target === editModal) {
+      editModal.style.display = 'none';
+    }
+  });
+});
+</script>
+</body>
+</html>
